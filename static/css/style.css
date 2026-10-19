@@ -72,6 +72,7 @@ button, input { font: inherit; color: inherit; }
   letter-spacing: 0.08em;
   border: 1px solid currentColor;
   background: color-mix(in srgb, currentColor 14%, transparent);
+  white-space: nowrap;
 }
 .badge.WRITER { color: var(--writer); }
 .badge.VALIDATOR { color: var(--validator); }

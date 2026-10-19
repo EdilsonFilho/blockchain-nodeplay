@@ -19,7 +19,6 @@ import asyncio
 import json
 import os
 import random
-import string
 import sys
 import uuid
 from pathlib import Path
@@ -35,11 +34,11 @@ DEFAULT_URL = f"ws://127.0.0.1:{os.environ.get('PORT', '8000')}"
 WORDS = ["thesis", "dataset", "article", "photo", "map", "record", "archive", "letter", "video", "report"]
 
 
-def random_ark() -> str:
+def random_record() -> str:
+    """A random word or record identifier, e.g. "dataset" or "REC-4821"."""
     if random.random() < 0.5:
         return random.choice(WORDS)
-    suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
-    return f"ark:/{random.randint(10000, 99999)}/{suffix}"
+    return f"REC-{random.randint(1000, 9999)}"
 
 
 async def bot(index: int, args: argparse.Namespace, connected: asyncio.Event) -> None:
@@ -77,7 +76,7 @@ async def writer_loop(ws, latest: dict) -> None:
         you = latest.get("you", {})
         if you.get("role") == "WRITER" and latest.get("accepting"):
             try:
-                await ws.send(json.dumps({"type": "propose", "tx": random_ark()}))
+                await ws.send(json.dumps({"type": "propose", "tx": random_record()}))
             except websockets.ConnectionClosed:
                 return
 

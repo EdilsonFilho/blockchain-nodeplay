@@ -18,7 +18,7 @@ No app to install, no internet connection needed. One laptop and a local Wi-Fi n
 
 Public blockchains such as Bitcoin let *anyone* join and use costly Proof-of-Work to agree on history. Many institutional networks are **permissioned** instead. They have a known set of nodes, and a small committee of validators reaches agreement through **Byzantine Fault Tolerant (BFT)** voting. One example is [Hyperledger Besu](https://besu.hyperledger.org/) running the IBFT 2.0 or QBFT consensus protocols.
 
-**dARK (Decentralized Archival Resource Key)** follows this model. It is an initiative to run [ARK persistent identifiers](https://arks.org/), the stable identifiers for scholarly and archival objects such as `ark:/80444/xt9bk2`, on a permissioned blockchain. Institutions *write* identifiers, a set of *validator* nodes agrees on them, and anyone can *observe* and audit the resulting ledger.
+A typical permissioned network has three kinds of participants. Members *write* records (a document registration, a certificate, a supply-chain event…). A set of *validator* nodes agrees on which records enter the ledger. And anyone with access can *observe* and audit the result.
 
 NodePlay turns that architecture into a game people can feel:
 
@@ -60,7 +60,7 @@ NodePlay turns that architecture into a game people can feel:
    Bot validators vote a second or two after each proposal and are never slashed. Human validators still vote, and still get slashed if they stay silent; their votes just can't block a proposal the bots approve. That is a good debrief point about who controls a network when a few nodes hold the majority. `BOT_VALIDATORS_COUNT` changes how many bots run (capped at `MAX_VALIDATORS`).
 
 3. **Global timer.** Nothing can be proposed until the facilitator presses **START**. The activity then runs for **5 minutes**, synchronised with the server clock on every screen. When time is up, the mempool closes. A vote already in progress is still allowed to finish.
-4. **One proposal at a time.** A writer submits a word or an ARK identifier (up to 48 characters). While it is being voted on, nobody else can propose. Writers can propose **as many times as they like**: as soon as the mempool reopens (a couple of seconds after each result), any writer can submit again, including the one who just proposed.
+4. **One proposal at a time.** A writer submits a word or a record identifier such as `REC-2048` (up to 48 characters). While it is being voted on, nobody else can propose. Writers can propose **as many times as they like**: as soon as the mempool reopens (a couple of seconds after each result), any writer can submit again, including the one who just proposed.
 5. **10-second vote.** The validators who are active when the proposal arrives form the voting committee. The quorum is `floor(N/2) + 1`.
    - Approvals ≥ quorum → **block created** and appended to the ledger.
    - Anything else, including a **timeout**, → **block not created** (default deny).
@@ -92,7 +92,7 @@ The `.env` file is where you describe the venue, so nothing needs to change in t
 
 ```ini
 WIFI_SSID=IOI-Blockchain-Lab   # Wi-Fi every participant must join
-WIFI_PASSWORD=dark2026!        # shown on the projector, on purpose
+WIFI_PASSWORD=lab2026!         # shown on the projector, on purpose
 WIFI_SECURITY=WPA              # WPA | WEP | nopass (optional)
 HOST_IP=                       # empty = auto-detect the IP at startup
 ```
@@ -116,7 +116,7 @@ python main.py
 ```
   Projector dashboard : http://192.168.0.10:8000/dashboard
   Participants (QR)   : http://192.168.0.10:8000/
-  Wi-Fi network       : IOI-Blockchain-Lab  (password: dark2026!)
+  Wi-Fi network       : IOI-Blockchain-Lab  (password: lab2026!)
 ```
 
 `--host 0.0.0.0` is required. It makes the server reachable from other devices on the network, not only from the laptop.
@@ -155,7 +155,7 @@ python main.py
 | 0:00 | Explain the three roles in one sentence each, then press **START**. |
 | 0:00 – 5:00 | Narrate the dashboard: *"Look, a timeout means no block!"*, *"Bot-07 was slashed, so the quorum just dropped to 3 of 5."* |
 | 5:00 | Time is up. Look at the ledger: how many blocks were sealed, rejected, slashed? |
-| Debrief | Why default deny? What happens to liveness when validators go silent? Why do real BFT networks need 2/3? Who should be allowed to be a validator in a network like dARK? |
+| Debrief | Why default deny? What happens to liveness when validators go silent? Why do real BFT networks need 2/3? Who should be allowed to be a validator in a real permissioned network? |
 
 Need to end early? While the activity is running, **▶ START** turns into a red **■ STOP** button. STOP closes the mempool immediately and cancels the vote in progress; the cancelled vote is not counted as a rejected block and gives no strikes.
 
@@ -199,7 +199,7 @@ GAME_DURATION=60 VOTE_TIMEOUT=5 ADMIN_TOKEN=secret uvicorn main:app --host 0.0.0
 
 ## Rehearse without people: the bot simulator
 
-`tools/simulate.py` connects bot nodes that join in order, propose random ARK identifiers, and vote. Some of them stay silent, so you can watch slashing happen.
+`tools/simulate.py` connects bot nodes that join in order, propose random words and record identifiers, and vote. Some of them stay silent, so you can watch slashing happen.
 
 ```bash
 # terminal 1
@@ -266,7 +266,7 @@ blockchain-NodePlay/
 
 | Direction | Message |
 |---|---|
-| node → server | `{"type": "propose", "tx": "ark:/80444/xt9bk2"}` |
+| node → server | `{"type": "propose", "tx": "REC-2048"}` |
 | node → server | `{"type": "vote", "round": 3, "approve": true}` |
 | node → server | connect to `/ws/node?sid=<id>&name=<nickname>`; without a valid nickname the server closes with code 4002 |
 | node → server | `{"type": "leave"}` (frees the seat; the server closes the socket with code 4001) |

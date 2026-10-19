@@ -59,7 +59,7 @@ BOT_VALIDATORS_COUNT: int = (
 # Consecutive missed votes (timeouts) before a validator is slashed.
 MAX_MISSED_VOTES: int = _int_env("MAX_MISSED_VOTES", 2)
 
-# Maximum length of a proposed transaction (word / ARK identifier).
+# Maximum length of a proposed transaction (a word or a record identifier).
 MAX_TX_LENGTH: int = _int_env("MAX_TX_LENGTH", 48)
 
 # Optional shared secret for the dashboard controls (START / RESET).

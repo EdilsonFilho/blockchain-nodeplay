@@ -8,7 +8,7 @@
   const { $, el, connect, toast, fmtClock, gameRemaining, renderMempool, tickMempool, renderLedger } = NodePlay;
 
   const ROLE_HINTS = {
-    WRITER: "You are a WRITER: propose records (words or ARK identifiers) for the validators to vote on.",
+    WRITER: "You are a WRITER: propose records (words or identifiers) for the validators to vote on.",
     VALIDATOR: "You are a VALIDATOR: approve or reject every proposal within the time limit. Staying silent twice gets you slashed!",
     OBSERVER: "You are an OBSERVER: a read-only node that audits the mempool and the ledger in real time.",
   };
@@ -153,7 +153,7 @@
     document.body.className = `role-${you.role}`;
     const badge = $("#role-badge");
     badge.className = `badge ${you.eliminated ? "ELIMINATED" : you.role}`;
-    badge.textContent = you.eliminated ? "OBSERVER · SLASHED" : you.role;
+    badge.textContent = you.eliminated ? "SLASHED" : you.role;
     $("#node-name").textContent = you.name;
     $("#role-hint").textContent = ROLE_HINTS[you.role];
 
