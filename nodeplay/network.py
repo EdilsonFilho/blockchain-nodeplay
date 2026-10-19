@@ -25,8 +25,19 @@ def lan_ip() -> str:
             return "127.0.0.1"
 
 
-def is_loopback(host: str) -> bool:
-    return host in {"localhost", "127.0.0.1", "::1", "0.0.0.0", "[::1]"}
+def wifi_qr_payload(ssid: str, password: str, security: str) -> str:
+    """
+    Standard "join Wi-Fi" QR payload, understood by the camera apps of
+    Android and iOS:  WIFI:T:WPA;S:<ssid>;P:<password>;;
+    """
+    def esc(value: str) -> str:
+        for ch in '\\;,:"':
+            value = value.replace(ch, "\\" + ch)
+        return value
+
+    if security.lower() == "nopass" or not password:
+        return f"WIFI:T:nopass;S:{esc(ssid)};;"
+    return f"WIFI:T:{security};S:{esc(ssid)};P:{esc(password)};;"
 
 
 @lru_cache(maxsize=16)

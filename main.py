@@ -10,8 +10,9 @@ Routes
 ------
     GET  /             participant client (phones)
     GET  /dashboard    projector dashboard (START / RESET controls)
-    GET  /join-info    URL participants should open
+    GET  /join-info    URL participants should open + Wi-Fi credentials
     GET  /qr.svg       QR code for that URL
+    GET  /wifi-qr.svg  "join Wi-Fi" QR code (when WIFI_SSID is configured)
     WS   /ws/node      participant channel  (?sid=<browser id>&name=<nickname>)
     WS   /ws/dashboard dashboard channel    (?token=<ADMIN_TOKEN>)
 """
@@ -24,13 +25,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from nodeplay import config
 from nodeplay.engine import ActionError, Engine
-from nodeplay.network import is_loopback, lan_ip, qr_svg
+from nodeplay.network import lan_ip, qr_svg, wifi_qr_payload
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("nodeplay")
@@ -40,8 +41,20 @@ STATIC_DIR = Path(__file__).parent / "static"
 engine = Engine()
 
 
+def resolve_server_ip() -> str:
+    """HOST_IP from .env if set, otherwise the LAN address detected right now."""
+    return config.HOST_IP or lan_ip()
+
+
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
+    # Capture the LAN IP once, when the service comes up. Restart the server
+    # after switching networks (or set HOST_IP / PUBLIC_URL in .env).
+    app.state.server_ip = resolve_server_ip()
+    source = "from HOST_IP" if config.HOST_IP else "auto-detected"
+    log.info("Server IP %s (%s)", app.state.server_ip, source)
+    if config.WIFI_SSID:
+        log.info("Participants' Wi-Fi: %s", config.WIFI_SSID)
     # The genesis block is sealed when the Engine is created (at import time).
     log.info("Genesis block %s sealed — open /dashboard on the projector", engine.ledger.last.hash[:8])
     yield
@@ -65,12 +78,14 @@ async def dashboard_page() -> FileResponse:
 
 
 def join_url(request: Request) -> str:
-    """The address phones should open (works even if the projector uses localhost)."""
+    """
+    The address phones should open: PUBLIC_URL if configured, otherwise the IP
+    captured at startup plus the port this request came in on (so it works
+    even when the projector opened the dashboard via localhost).
+    """
     if config.PUBLIC_URL:
         return config.PUBLIC_URL + "/"
-    host = request.url.hostname or "localhost"
-    if is_loopback(host):
-        host = lan_ip()
+    host = getattr(request.app.state, "server_ip", "") or resolve_server_ip()
     port = request.url.port
     default_port = 443 if request.url.scheme == "https" else 80
     return f"{request.url.scheme}://{host}{f':{port}' if port and port != default_port else ''}/"
@@ -78,12 +93,27 @@ def join_url(request: Request) -> str:
 
 @app.get("/join-info")
 async def join_info(request: Request) -> dict:
-    return {"url": join_url(request)}
+    wifi = None
+    if config.WIFI_SSID:
+        wifi = {
+            "ssid": config.WIFI_SSID,
+            "password": config.WIFI_PASSWORD,
+            "security": config.WIFI_SECURITY,
+        }
+    return {"url": join_url(request), "wifi": wifi}
 
 
 @app.get("/qr.svg", include_in_schema=False)
 async def qr_code(request: Request) -> Response:
     return Response(qr_svg(join_url(request)), media_type="image/svg+xml")
+
+
+@app.get("/wifi-qr.svg", include_in_schema=False)
+async def wifi_qr_code() -> Response:
+    if not config.WIFI_SSID:
+        raise HTTPException(status_code=404, detail="WIFI_SSID is not configured")
+    payload = wifi_qr_payload(config.WIFI_SSID, config.WIFI_PASSWORD, config.WIFI_SECURITY)
+    return Response(qr_svg(payload), media_type="image/svg+xml")
 
 
 # ---------------------------------------------------------------- WebSockets
@@ -146,12 +176,13 @@ async def dashboard_socket(ws: WebSocket) -> None:
 
 
 if __name__ == "__main__":
-    import os
-
     import uvicorn
 
-    port = int(os.environ.get("PORT", 8000))
-    ip = lan_ip()
-    print(f"\n  Projector dashboard : http://{ip}:{port}/dashboard")
-    print(f"  Participants (QR)   : http://{ip}:{port}/\n")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    ip = resolve_server_ip()
+    base = config.PUBLIC_URL or f"http://{ip}:{config.PORT}"
+    print(f"\n  Projector dashboard : {base}/dashboard")
+    print(f"  Participants (QR)   : {base}/")
+    if config.WIFI_SSID:
+        print(f"  Wi-Fi network       : {config.WIFI_SSID}  (password: {config.WIFI_PASSWORD or '—'})")
+    print()
+    uvicorn.run(app, host="0.0.0.0", port=config.PORT)

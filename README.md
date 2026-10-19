@@ -67,7 +67,24 @@ python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
 pip install -r requirements.txt
+
+cp .env.example .env               # then edit the Wi-Fi name/password
 ```
+
+### Configure the venue network (`.env`)
+
+The `.env` file is where you describe the venue, so nothing needs to change in the code when you move to another room or network:
+
+```ini
+WIFI_SSID=IOI-Blockchain-Lab   # Wi-Fi every participant must join
+WIFI_PASSWORD=dark2026!        # shown on the projector, on purpose
+WIFI_SECURITY=WPA              # WPA | WEP | nopass (optional)
+HOST_IP=                       # empty = auto-detect the IP at startup
+```
+
+- **Wi-Fi.** When `WIFI_SSID` is set, the dashboard shows the network name, the password, and a **"join Wi-Fi" QR code**. Android and iOS camera apps connect to the network straight from that code. Joining is step ①; opening NodePlay is step ②.
+- **IP address.** The server IP is **captured automatically when the service starts**. It is printed in the console and encoded in the join QR code. If you change networks, restart the server so it picks up the new IP. Set `HOST_IP` (or a full `PUBLIC_URL`) only if detection picks the wrong interface, for example because of a VPN, Docker, or several network cards.
+- `.env` is listed in `.gitignore`, so the venue's real password is never committed. Only `.env.example` is versioned.
 
 ### Run
 
@@ -84,6 +101,7 @@ python main.py
 ```
   Projector dashboard : http://192.168.0.10:8000/dashboard
   Participants (QR)   : http://192.168.0.10:8000/
+  Wi-Fi network       : IOI-Blockchain-Lab  (password: dark2026!)
 ```
 
 `--host 0.0.0.0` is required. It makes the server reachable from other devices on the network, not only from the laptop.
@@ -92,12 +110,12 @@ python main.py
 
 ## Connecting 30 devices on a local network
 
-1. **Put everybody on the same network.** Connect the laptop and all phones to the same Wi-Fi.
+1. **Put everybody on the same network.** Connect the laptop and all phones to the Wi-Fi set in `.env`. The dashboard shows its name, password and QR code.
    - Classroom or event Wi-Fi often has **client isolation** ("AP isolation") turned on, which blocks phones from reaching the laptop. If participants can't connect, use a dedicated router or turn the **laptop or a phone into a hotspot**. Most hotspots handle 30 clients poorly, though, so a cheap travel router is the most reliable option.
 2. **Open the dashboard on the projector:** `http://<laptop-ip>:8000/dashboard`. It works from `localhost` too; the QR code always points to the laptop's LAN address.
-3. **Show the QR code.** Press **📱 Join QR** for a full-screen code. Participants scan it with their camera app, optionally type a nickname, and tap **Connect as a node**.
-   - If scanning fails, they can type the URL shown under the code, e.g. `http://192.168.0.10:8000`.
-   - If the address is detected wrongly (VPNs, several network cards), set it yourself: `PUBLIC_URL=http://192.168.0.10:8000 python main.py`.
+3. **Show the QR codes.** Press **📱 Join QR** for a full-screen view with two codes: ① join the Wi-Fi and ② open NodePlay. Participants scan both with their camera app, optionally type a nickname, and tap **Connect as a node**.
+   - If scanning fails, they can type the network name, the password, and the URL shown under the codes, e.g. `http://192.168.0.10:8000`.
+   - If the IP is detected wrongly (VPNs, several network cards), set `HOST_IP=192.168.0.10` in `.env` and restart.
 4. **Allow the port through your firewall** if phones time out:
    - Linux (ufw): `sudo ufw allow 8000/tcp`
    - Windows: accept the "Allow access" prompt for Python on **private networks**.
@@ -130,7 +148,7 @@ Press **↺ RESET** (or **▶ NEW ROUND** after the timer ends) to play again. A
 
 ## Configuration
 
-Every setting is an environment variable with a sensible default:
+Every setting can be placed in `.env` (see [`.env.example`](.env.example)) or passed as an environment variable. Variables set in the shell take precedence over `.env`.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -142,7 +160,11 @@ Every setting is an environment variable with a sensible default:
 | `MAX_MISSED_VOTES` | `2` | Consecutive missed votes before slashing |
 | `MAX_TX_LENGTH` | `48` | Maximum characters per proposal |
 | `ADMIN_TOKEN` | *(empty)* | If set, only `/dashboard?token=<value>` can press START/RESET; other dashboards are read-only |
-| `PUBLIC_URL` | *(auto)* | Base URL encoded in the QR code |
+| `WIFI_SSID` | *(empty)* | Wi-Fi network participants must join; shown on the dashboard with a join QR code |
+| `WIFI_PASSWORD` | *(empty)* | Wi-Fi password, displayed on the dashboard |
+| `WIFI_SECURITY` | `WPA` / `nopass` | `WPA`, `WEP` or `nopass`; inferred from the password when empty |
+| `HOST_IP` | *(auto)* | Server IP for the join QR code; auto-detected at startup when empty |
+| `PUBLIC_URL` | *(empty)* | Full base URL; overrides `HOST_IP` and auto-detection |
 | `PORT` | `8000` | Port used by `python main.py` |
 
 Example of a quick rehearsal:
@@ -185,10 +207,10 @@ You can also open the participant page on your own phone while bots fill the oth
 blockchain-NodePlay/
 ├── main.py                 # FastAPI app: HTTP routes + WebSocket endpoints
 ├── nodeplay/
-│   ├── config.py           # Environment-driven settings
+│   ├── config.py           # Settings from .env / environment variables
 │   ├── engine.py           # Roles, game timer, consensus rounds, slashing, broadcasting
 │   ├── ledger.py           # Blocks, SHA-256 hashing, chain verification
-│   └── network.py          # LAN IP detection + QR code (SVG)
+│   └── network.py          # LAN IP detection + URL and Wi-Fi QR codes (SVG)
 ├── static/
 │   ├── index.html          # Participant client (phones)
 │   ├── dashboard.html      # Projector dashboard
@@ -196,6 +218,7 @@ blockchain-NodePlay/
 │   └── js/                 # common.js (WebSocket, clock sync, renderers), node.js, dashboard.js
 ├── tools/simulate.py       # Bot swarm for rehearsals and load testing
 ├── docs/                   # Screenshots
+├── .env.example            # Venue settings template (copy to .env)
 ├── requirements.txt
 └── LICENSE
 ```
@@ -235,7 +258,8 @@ blockchain-NodePlay/
 | Symptom | Fix |
 |---|---|
 | Phones can't open the page | Same Wi-Fi? Firewall open? Client isolation on the router? Try a hotspot or a dedicated router. |
-| QR code points to the wrong IP | Start with `PUBLIC_URL=http://<ip>:8000`. |
+| QR code points to the wrong IP | Restart the server after switching networks, or set `HOST_IP=<ip>` in `.env`. |
+| Wi-Fi panel does not appear | `WIFI_SSID` is empty or `.env` is missing. Run `cp .env.example .env`, edit it, and restart. |
 | Everyone is an Observer | Writer/validator seats are taken by earlier connections, such as bots. Press **RESET** to re-assign roles in join order. |
 | "This session was opened in another tab" | The same browser opened the page twice. Only the newest tab stays connected. |
 | A phone shows a red dot in the header | It lost the connection. It reconnects automatically; tapping the screen or reopening the tab speeds this up. |

@@ -92,10 +92,18 @@
       <aside class="side">
         <article class="panel join">
           <h2 class="panel-title">Join the network</h2>
+          <div class="join-row wifi-step hidden">
+            <img alt="QR code to join the Wi-Fi" class="qr-small wifi-qr">
+            <div class="wifi-info">
+              <div class="step">① Connect to the Wi-Fi</div>
+              <div class="kv"><span class="muted">Network</span><strong class="mono wifi-ssid"></strong></div>
+              <div class="kv"><span class="muted">Password</span><strong class="mono wifi-pass"></strong></div>
+            </div>
+          </div>
           <div class="join-row">
             <img src="/qr.svg" alt="QR code to join" class="qr-small">
             <div>
-              <div class="muted small">Connect to the same Wi-Fi and open:</div>
+              <div class="step"><span class="wifi-num hidden">② </span>Open in the browser</div>
               <div id="join-url" class="join-url mono">…</div>
             </div>
           </div>
@@ -117,9 +125,20 @@
   <!-- Full-screen QR overlay -->
   <div id="qr-overlay" class="overlay hidden" role="dialog" aria-label="Join QR code">
     <div class="overlay-box">
-      <img src="/qr.svg" alt="QR code to join">
-      <div class="join-url mono big-url" id="join-url-big">…</div>
-      <p class="muted">Scan with your phone camera (same Wi-Fi) · click anywhere to close</p>
+      <div class="overlay-steps">
+        <div class="overlay-step wifi-step hidden">
+          <div class="step big-step">① Join the Wi-Fi</div>
+          <img alt="QR code to join the Wi-Fi" class="wifi-qr">
+          <div class="kv big-kv"><span class="muted">Network</span><strong class="mono wifi-ssid"></strong></div>
+          <div class="kv big-kv"><span class="muted">Password</span><strong class="mono wifi-pass"></strong></div>
+        </div>
+        <div class="overlay-step">
+          <div class="step big-step"><span class="wifi-num hidden">② </span>Open NodePlay</div>
+          <img src="/qr.svg" alt="QR code to join">
+          <div class="join-url mono big-url" id="join-url-big">…</div>
+        </div>
+      </div>
+      <p class="muted">Scan with your phone camera · click anywhere to close</p>
     </div>
   </div>
 

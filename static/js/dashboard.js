@@ -33,9 +33,19 @@
   overlay.addEventListener("click", () => overlay.classList.add("hidden"));
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") overlay.classList.add("hidden"); });
 
+  // Where to connect: the server IP captured at startup + Wi-Fi from .env.
   fetch("/join-info")
     .then((r) => r.json())
-    .then(({ url }) => { $("#join-url").textContent = url; $("#join-url-big").textContent = url; })
+    .then(({ url, wifi }) => {
+      $("#join-url").textContent = url;
+      $("#join-url-big").textContent = url;
+      if (!wifi) return;
+      overlay.classList.add("with-wifi");
+      document.querySelectorAll(".wifi-step, .wifi-num").forEach((n) => n.classList.remove("hidden"));
+      document.querySelectorAll(".wifi-ssid").forEach((n) => { n.textContent = wifi.ssid; });
+      document.querySelectorAll(".wifi-pass").forEach((n) => { n.textContent = wifi.password || "(open network)"; });
+      document.querySelectorAll(".wifi-qr").forEach((n) => { n.src = "/wifi-qr.svg"; });
+    })
     .catch(() => {});
 
   // -------------------------------------------------------------- render
