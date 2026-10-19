@@ -16,6 +16,10 @@
 .join { margin-top: 12vh; text-align: center; }
 .join h1 { margin: 8px 0; font-size: 1.6rem; }
 .join form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.join-label { text-align: left; font-weight: 700; font-size: 0.9rem; }
+.join-label .req { color: var(--reject); }
+.join-error { margin: -2px 0 0; text-align: left; color: #fca5a5; font-size: 0.85rem; }
+.input.invalid { border-color: var(--reject); }
 .brand { font-weight: 800; letter-spacing: 0.04em; color: var(--validator); }
 
 /* Header */
@@ -31,6 +35,8 @@
 .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .who .badge { font-size: 0.85rem; padding: 6px 12px; }
 .name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.leave-btn { padding: 8px 12px; font-size: 0.85rem; border-radius: 10px; }
 
 .clock { display: flex; justify-content: space-between; align-items: center; }
 .clock .panel-title { margin-bottom: 2px; }

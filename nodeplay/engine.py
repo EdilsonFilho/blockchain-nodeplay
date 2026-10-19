@@ -7,15 +7,27 @@ for the one that serialises broadcasts.
 
 Lifecycle
 ---------
-    IDLE --[START]--> RUNNING --(GAME_DURATION elapses)--> ENDED
+    IDLE --[START]--> RUNNING --(GAME_DURATION elapses or [STOP])--> ENDED
       ^                                                      |
       +---------------------------[RESET]--------------------+
 
+Roles
+-----
+There is no limit on participants. Each newcomer draws a random role among
+the roles that still have a free seat (writers: unlimited by default;
+validators: MAX_VALIDATORS in total, bots included; observers: unlimited).
+Two rules keep the network playable:
+  * if there is no writer, the newcomer becomes a writer;
+  * if there is no validator (only possible without bots), the newcomer
+    becomes one.
+Optional built-in bot validators (BOT_VALIDATORS_*) always approve, so with
+them a single writer is enough to see blocks being created.
+
 Consensus round
 ---------------
-1. A WRITER proposes a transaction (only one may sit in the mempool). For
-   fairness, a writer cannot propose two rounds in a row while other
-   writers are online.
+1. A WRITER proposes a transaction (only one may sit in the mempool).
+   Writers may propose as many times as they like: as soon as the mempool
+   reopens, any writer (including the last proposer) can try again.
 2. The set of *eligible* validators is frozen: every active, connected
    validator at that moment. The quorum is  floor(N / 2) + 1  (> 50 %).
 3. Validators have VOTE_TIMEOUT seconds to approve or reject.
@@ -32,6 +44,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import random
 import re
 import time
 from dataclasses import dataclass, field
@@ -51,6 +64,10 @@ RECONNECT_GRACE = 60.0
 
 # Maximum number of entries kept in the activity feed.
 MAX_EVENTS = 40
+
+# Every participant must choose a nickname to join (length after cleaning).
+NICKNAME_MIN = 2
+NICKNAME_MAX = 20
 
 
 class Role(str, Enum):
@@ -77,16 +94,17 @@ class Node:
 
     sid: str  # session id generated and persisted by the browser
     name: str
-    seq: int  # join order, used to re-assign roles on RESET
+    seq: int  # join order (used for default names like Node-07)
     role: Role
     ws: WebSocket | None = None
     disconnected_at: float = 0.0
     missed: int = 0  # consecutive missed votes
     eliminated: bool = False
+    bot: bool = False  # built-in validator living inside the server
 
     @property
     def connected(self) -> bool:
-        return self.ws is not None
+        return self.bot or self.ws is not None
 
 
 @dataclass
@@ -161,7 +179,20 @@ class Engine:
         self._broadcast_lock = asyncio.Lock()
         self._game_task: asyncio.Task | None = None
         self._round_task: asyncio.Task | None = None
+        self._bot_tasks: set[asyncio.Task] = set()
         self._clear_game_state()
+        self._spawn_bot_validators()
+
+    def _spawn_bot_validators(self) -> None:
+        """Create the built-in validators that always vote APPROVE."""
+        for i in range(1, config.BOT_VALIDATORS_COUNT + 1):
+            sid = f"bot-validator-{i}"
+            self.nodes[sid] = Node(sid=sid, name=f"Bot-V{i}", seq=0, role=Role.VALIDATOR, bot=True)
+        log.info("%d bot validators enabled (always approve)", config.BOT_VALIDATORS_COUNT)
+
+    @property
+    def _bots(self) -> list[Node]:
+        return [n for n in self.nodes.values() if n.bot]
 
     def _clear_game_state(self) -> None:
         self.phase = Phase.IDLE
@@ -200,11 +231,24 @@ class Engine:
         return count
 
     def _pick_role(self, now: float, exclude: Node | None = None) -> Role:
-        if self._slots_taken(Role.WRITER, now, exclude) < config.MAX_WRITERS:
+        writers = self._slots_taken(Role.WRITER, now, exclude)
+        validators = self._slots_taken(Role.VALIDATOR, now, exclude)
+
+        # Keep the network playable: someone must propose and someone must
+        # validate (bots, when enabled, already cover the second rule).
+        if writers == 0:
             return Role.WRITER
-        if self._slots_taken(Role.VALIDATOR, now, exclude) < config.MAX_VALIDATORS:
+        if validators == 0:
             return Role.VALIDATOR
-        return Role.OBSERVER
+
+        # Otherwise every role with a free seat is equally likely
+        # (observers are unlimited, so they are always an option).
+        free = [Role.OBSERVER]
+        if not config.MAX_WRITERS or writers < config.MAX_WRITERS:
+            free.append(Role.WRITER)
+        if validators < config.MAX_VALIDATORS:
+            free.append(Role.VALIDATOR)
+        return random.choice(free)
 
     def _active(self, role: Role) -> list[Node]:
         return [n for n in self.nodes.values() if n.connected and n.role is role]
@@ -214,7 +258,7 @@ class Engine:
     async def connect_node(self, ws: WebSocket, sid: str, name: str) -> Node:
         now = time.time()
         sid = clean_text(sid, 64)
-        name = clean_text(name, 20)
+        name = clean_text(name, NICKNAME_MAX)
         node = self.nodes.get(sid) if sid else None
 
         if node is None:
@@ -245,7 +289,22 @@ class Engine:
         await self.broadcast()
         return node
 
+    async def leave(self, node: Node) -> None:
+        """
+        The participant pressed "Leave network": forget the node right away
+        (no reconnect grace), so its seat is free and a later join draws a
+        brand-new random role.
+        """
+        if self.nodes.get(node.sid) is node:
+            del self.nodes[node.sid]
+        node.ws = None
+        log.info("node %s left the network", node.name)
+        self._event(f"{node.name} left the network", "leave")
+        await self.broadcast()
+
     async def disconnect_node(self, node: Node, ws: WebSocket) -> None:
+        if self.nodes.get(node.sid) is not node:  # already left via leave()
+            return
         if node.ws is not ws:  # already replaced by a newer connection
             return
         node.ws = None
@@ -275,27 +334,33 @@ class Engine:
         self.ends_at = now + config.GAME_DURATION
         self._game_task = asyncio.create_task(self._game_timer())
         self._event("Activity started — the network is live!", "start")
+        if self._bots:
+            self._event(f"{len(self._bots)} bot validators online — they always approve", "start")
         log.info("activity started (%ss)", config.GAME_DURATION)
         await self.broadcast()
 
     async def reset(self, broadcast: bool = True) -> None:
-        for task in (self._game_task, self._round_task):
+        for task in (self._game_task, self._round_task, *self._bot_tasks):
             if task and not task.done():
                 task.cancel()
         self._game_task = self._round_task = None
+        self._bot_tasks.clear()
 
         self._clear_game_state()
         self.ledger.reset()
 
-        # Forget nodes that are gone, then re-assign roles in join order so the
-        # first participants are writers again and slashed validators return.
+        # Forget nodes that are gone, then draw every role again in a random
+        # order (slashed validators come back).
         now = time.time()
         self.nodes = {sid: n for sid, n in self.nodes.items() if n.connected}
+        humans = [n for n in self.nodes.values() if not n.bot]
         for node in self.nodes.values():
             node.missed = 0
             node.eliminated = False
-            node.role = Role.OBSERVER  # free every slot before re-assigning
-        for node in sorted(self.nodes.values(), key=lambda n: n.seq):
+        for node in humans:
+            node.role = Role.OBSERVER  # free every seat before re-assigning
+        random.shuffle(humans)
+        for node in humans:
             node.role = self._pick_role(now, exclude=node)
 
         self._event("Network reset — new genesis block sealed", "reset")
@@ -303,17 +368,36 @@ class Engine:
         if broadcast:
             await self.broadcast()
 
+    async def stop(self) -> None:
+        """The facilitator ends the activity early (STOP button)."""
+        if self.phase is not Phase.RUNNING:
+            raise ActionError("The activity is not running.")
+        for task in (self._game_task, self._round_task, *self._bot_tasks):
+            if task and not task.done():
+                task.cancel()
+        self._game_task = self._round_task = None
+        self._bot_tasks.clear()
+
+        now = time.time()
+        rnd = self.round
+        if rnd and rnd.status is RoundStatus.VOTING:
+            # Cancelled, not judged: it is not counted as a rejected block and
+            # nobody gets a strike for it.
+            rnd.status = RoundStatus.REJECTED
+            rnd.closed_at = now
+            rnd.reason = "Vote cancelled — the activity was stopped"
+        self.phase = Phase.ENDED
+        self.ends_at = now
+        self._event("Activity stopped by the facilitator.", "end")
+        log.info("activity stopped")
+        await self.broadcast()
+
     async def _game_timer(self) -> None:
         await asyncio.sleep(max(0.0, self.ends_at - time.time()))
         self.phase = Phase.ENDED
         self._event("Time is up! The mempool is closed.", "end")
         log.info("activity ended")
         await self.broadcast()
-
-    def _must_wait_turn(self, node: Node) -> bool:
-        """Fairness: the last proposer yields the next turn to the other writers."""
-        last = self.round
-        return bool(last and last.proposer_sid == node.sid and len(self._active(Role.WRITER)) > 1)
 
     def _accepting_proposals(self, now: float) -> bool:
         return (
@@ -335,8 +419,6 @@ class Engine:
             raise ActionError("Another proposal is already being voted on.")
         if now < self.mempool_open_at:
             raise ActionError("The mempool reopens in a moment.")
-        if self._must_wait_turn(node):
-            raise ActionError("You proposed the last block — let another writer go first.")
         tx = clean_text(raw_tx, config.MAX_TX_LENGTH)
         if not tx:
             raise ActionError("The transaction cannot be empty.")
@@ -354,7 +436,18 @@ class Engine:
         )
         self._event(f'{node.name} proposed "{tx}" (needs {self.round.required}/{len(eligible)})', "propose")
         self._round_task = asyncio.create_task(self._run_round(self.round))
+        for bot in self._bots:
+            if bot.sid in eligible:
+                task = asyncio.create_task(self._bot_vote(bot, self.round.id))
+                self._bot_tasks.add(task)
+                task.add_done_callback(self._bot_tasks.discard)
         await self.broadcast()
+
+    async def _bot_vote(self, bot: Node, round_id: int) -> None:
+        """Bots "think" for a moment (well within the deadline), then approve."""
+        await asyncio.sleep(random.uniform(0.3, min(3.0, config.VOTE_TIMEOUT * 0.5)))
+        with contextlib.suppress(ActionError):  # round already closed / reset
+            await self.vote(bot, round_id, True)
 
     async def vote(self, node: Node, round_id: object, approve: object) -> None:
         rnd = self.round
@@ -457,7 +550,8 @@ class Engine:
                 "writers": len(self._active(Role.WRITER)),
                 "validators": validators,
                 "observers": len(self._active(Role.OBSERVER)),
-                "online": sum(1 for n in self.nodes.values() if n.connected),
+                "bots": sum(1 for n in self._bots if n.role is Role.VALIDATOR),
+                "online": sum(1 for n in self.nodes.values() if n.connected and not n.bot),
                 "quorum": validators // 2 + 1,
             },
             "stats": {
@@ -488,7 +582,6 @@ class Engine:
                 "max_missed": config.MAX_MISSED_VOTES,
                 "eligible": bool(rnd and node.sid in rnd.eligible),
                 "vote": vote,
-                "wait_turn": node.role is Role.WRITER and self._must_wait_turn(node),
             },
         }
 

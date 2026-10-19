@@ -23,6 +23,13 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+def _bool_env(name: str, default: bool) -> bool:
+    value = os.environ.get(name, "").strip().lower()
+    if not value:
+        return default
+    return value in {"1", "true", "yes", "on"}
+
+
 # Total length of the activity, in seconds (default: 5 minutes).
 GAME_DURATION: int = _int_env("GAME_DURATION", 300)
 
@@ -33,9 +40,21 @@ VOTE_TIMEOUT: int = _int_env("VOTE_TIMEOUT", 10)
 # mempool accepts the next proposal, in seconds.
 RESULT_PAUSE: int = _int_env("RESULT_PAUSE", 2)
 
-# Role quotas. Nodes that connect after these quotas are filled become observers.
-MAX_WRITERS: int = _int_env("MAX_WRITERS", 5)
-MAX_VALIDATORS: int = _int_env("MAX_VALIDATORS", 7)
+# Role seats. There is no limit on the number of participants: every newcomer
+# draws a random role among the roles that still have a free seat.
+# MAX_VALIDATORS is the TOTAL number of validators, bot validators included.
+MAX_VALIDATORS: int = max(1, _int_env("MAX_VALIDATORS", 7))
+# Writer seats; 0 means unlimited (default).
+MAX_WRITERS: int = max(0, _int_env("MAX_WRITERS", 0))
+
+# Built-in bot validators run inside the server and ALWAYS approve, voting a
+# second or two after each proposal. They take validator seats (counted in
+# MAX_VALIDATORS) and are never slashed. With 4 bots out of 7 validators the
+# bots alone reach the majority, so a single writer is enough to create blocks.
+BOT_VALIDATORS_ENABLED: bool = _bool_env("BOT_VALIDATORS_ENABLED", True)
+BOT_VALIDATORS_COUNT: int = (
+    min(max(0, _int_env("BOT_VALIDATORS_COUNT", 4)), MAX_VALIDATORS) if BOT_VALIDATORS_ENABLED else 0
+)
 
 # Consecutive missed votes (timeouts) before a validator is slashed.
 MAX_MISSED_VOTES: int = _int_env("MAX_MISSED_VOTES", 2)

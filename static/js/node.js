@@ -41,12 +41,43 @@
   const joinName = $("#join-name");
   joinName.value = store.get("nodeplay.name") || "";
 
+  // The nickname is mandatory (the server enforces the same rule).
+  const NICKNAME_MIN = 2;
+  const validNickname = (value) => (value || "").trim().length >= NICKNAME_MIN;
+
+  function showJoinError(show) {
+    $("#join-error").classList.toggle("hidden", !show);
+    joinName.classList.toggle("invalid", show);
+  }
+  joinName.addEventListener("input", () => { if (validNickname(joinName.value)) showJoinError(false); });
+
   joinForm.addEventListener("submit", (ev) => {
     ev.preventDefault();
-    store.set("nodeplay.name", joinName.value.trim());
+    const nickname = joinName.value.trim();
+    if (!validNickname(nickname)) {
+      showJoinError(true);
+      joinName.focus();
+      return;
+    }
+    showJoinError(false);
+    store.set("nodeplay.name", nickname);
     store.set("nodeplay.joined", "1");
     start();
   });
+
+  /** Back to the join screen (after leaving, or when the server refuses the join). */
+  function showJoinScreen() {
+    socket?.close();
+    socket = null;
+    state = null;
+    lastRoundId = null;
+    wasEliminated = false;
+    store.set("nodeplay.joined", "");
+    document.body.className = "";
+    $("#conn-dot").classList.remove("online");
+    $("#node-screen").classList.add("hidden");
+    $("#join-screen").classList.remove("hidden");
+  }
 
   function start() {
     $("#join-screen").classList.add("hidden");
@@ -56,11 +87,17 @@
       {
         onMessage: handleMessage,
         onStatus: (online) => $("#conn-dot").classList.toggle("online", online),
+        onRefused: () => {
+          showJoinScreen();
+          showJoinError(true);
+          joinName.focus();
+        },
       },
     );
   }
 
-  if (store.get("nodeplay.joined")) start();
+  // Rejoin automatically after a reload, but only with a valid nickname.
+  if (store.get("nodeplay.joined") && validNickname(store.get("nodeplay.name"))) start();
 
   // ---------------------------------------------------------- messages
   function handleMessage(msg) {
@@ -72,6 +109,18 @@
       if (msg.level === "danger") navigator.vibrate?.([200, 100, 200]);
     }
   }
+
+  // ------------------------------------------------------------- leave
+  // Leaving frees the seat immediately. The next join uses a fresh session id,
+  // so it counts as a brand-new node and draws a new random role.
+  $("#leave-btn").addEventListener("click", () => {
+    if (!confirm("Leave the network? Your role is released. If you join again, you get a new random role.")) return;
+    socket?.send({ type: "leave" });
+    showJoinScreen();
+    sid = randomId();
+    store.set("nodeplay.sid", sid);
+    toast("You left the network. Join again whenever you like.", "ok");
+  });
 
   // ------------------------------------------------------------ actions
   $("#propose-form").addEventListener("submit", (ev) => {
@@ -123,14 +172,13 @@
     const isWriter = you.role === "WRITER";
     $("#writer-view").classList.toggle("hidden", !isWriter);
     if (isWriter) {
-      $("#propose-btn").disabled = !state.accepting || you.wait_turn;
+      $("#propose-btn").disabled = !state.accepting;
       $("#tx-input").maxLength = state.max_tx_length;
       let status = "The mempool is open — propose a transaction!";
       if (state.phase === "IDLE") status = "Waiting for the facilitator to start…";
       else if (state.phase === "ENDED") status = "The activity has ended.";
       else if (voting) status = "A proposal is being voted on. Wait for the result…";
       else if (!state.accepting) status = "Sealing the previous round…";
-      else if (you.wait_turn) status = "You proposed the last block — let another writer go first.";
       $("#writer-status").textContent = status;
     }
 

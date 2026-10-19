@@ -18,13 +18,15 @@ const NodePlay = (() => {
   // ------------------------------------------------------------- websocket
   /**
    * Open a WebSocket that reconnects automatically (with backoff).
-   * Returns { send(obj) }.
+   * Returns { send(obj), close() }; close() stops reconnecting for good.
+   * onRefused(reason) is called when the server refuses the join (code 4002).
    */
-  function connect(path, { onMessage, onStatus }) {
+  function connect(path, { onMessage, onStatus, onRefused }) {
     let ws = null;
     let retry = 0;
     let pingTimer = null;
     let retryTimer = null;
+    let stopped = false;
 
     const open = () => {
       clearTimeout(retryTimer);
@@ -48,6 +50,11 @@ const NodePlay = (() => {
         if (sock !== ws) return;          // a newer socket already took over
         clearInterval(pingTimer);
         onStatus?.(false);
+        if (stopped || ev.code === 4001) return;  // closed on purpose (left the network)
+        if (ev.code === 4002) {           // join refused (e.g. missing nickname)
+          onRefused?.(ev.reason);
+          return;
+        }
         if (ev.code === 4000) {           // replaced by a newer tab
           toast("This session was opened in another tab.", "warn");
           return;
@@ -67,14 +74,21 @@ const NodePlay = (() => {
 
     // Phones suspend sockets in the background; reconnect as soon as we're back.
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && ws && ws.readyState === WebSocket.CLOSED) {
+      if (!stopped && document.visibilityState === "visible" && ws && ws.readyState === WebSocket.CLOSED) {
         retry = 0;
         open();
       }
     });
 
+    const close = () => {
+      stopped = true;
+      clearTimeout(retryTimer);
+      clearInterval(pingTimer);
+      ws?.close(1000);
+    };
+
     open();
-    return { send };
+    return { send, close };
   }
 
   // ------------------------------------------------------------------- DOM
@@ -154,7 +168,7 @@ const NodePlay = (() => {
 
     let idleText = "Mempool empty — waiting for a WRITER to propose a transaction…";
     if (state.phase === "IDLE") idleText = "Waiting for the facilitator to START the activity…";
-    else if (state.phase === "ENDED") idleText = "Time is up — the activity has ended.";
+    else if (state.phase === "ENDED") idleText = "The activity has ended — the mempool is closed.";
     else if (!state.accepting) idleText = "Sealing… the mempool reopens in a moment.";
     set("idle-text", idleText);
 

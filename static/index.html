@@ -18,8 +18,10 @@
         You are about to become a node of a permissioned blockchain.
         Your role (Writer, Validator or Observer) is assigned automatically.
       </p>
-      <form id="join-form" autocomplete="off">
-        <input id="join-name" class="input" maxlength="20" placeholder="Your nickname (optional)">
+      <form id="join-form" autocomplete="off" novalidate>
+        <label for="join-name" class="join-label">Nickname <span class="req">*</span></label>
+        <input id="join-name" class="input" required minlength="2" maxlength="20" placeholder="Your nickname" autocapitalize="words" enterkeyhint="go">
+        <p id="join-error" class="join-error hidden">Please enter a nickname (at least 2 characters) to join.</p>
         <button class="btn btn-primary" type="submit">Connect as a node →</button>
       </form>
     </section>
@@ -32,7 +34,10 @@
         <span id="role-badge" class="badge">…</span>
         <span id="node-name" class="name"></span>
       </div>
-      <div class="conn" title="Connection status"><span id="conn-dot" class="dot"></span></div>
+      <div class="header-actions">
+        <span id="conn-dot" class="dot" title="Connection status"></span>
+        <button id="leave-btn" class="btn btn-ghost leave-btn" type="button" title="Leave the network">⏏ Leave</button>
+      </div>
     </header>
 
     <section class="panel clock">

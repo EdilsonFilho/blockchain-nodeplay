@@ -1,6 +1,6 @@
 # ⛓️ NodePlay — Permissioned Consensus Lab
 
-**A 5-minute, hands-on classroom activity where up to 30+ people turn their phones into the nodes of a permissioned blockchain.**
+**A 5-minute, hands-on classroom activity where any number of people turn their phones into the nodes of a permissioned blockchain.**
 
 Participants scan a QR code and are automatically assigned a role: **Writers** propose records, **Validators** vote to seal them into blocks, and **Observers** audit the ledger in real time. A projector dashboard shows the mempool, the voting countdown, the hash-linked ledger, and validators being *slashed* for inactivity.
 
@@ -38,20 +38,35 @@ NodePlay turns that architecture into a game people can feel:
 
 ## Rules of the game
 
-1. **Automatic roles.** Roles are assigned in the order people connect:
-   - first **5** → `WRITER`
-   - next **7** → `VALIDATOR`
-   - everyone else → `OBSERVER`
+1. **Random roles, no participant limit.** Anyone can join, from 1 person to a whole auditorium. Each newcomer draws a **random role** among the roles that still have a free seat:
+   - `WRITER`: unlimited seats by default (`MAX_WRITERS=0`)
+   - `VALIDATOR`: at most **7 in total**, bot validators included (`MAX_VALIDATORS`)
+   - `OBSERVER`: unlimited
 
-   When someone disconnects, the network metrics update instantly. A phone that reconnects (after a reload or a locked screen) gets its role back within 60 seconds. A vacancy left by someone who never returns is filled by the next person to join.
-2. **Global timer.** Nothing can be proposed until the facilitator presses **START**. The activity then runs for **5 minutes**, synchronised with the server clock on every screen. When time is up, the mempool closes. A vote already in progress is still allowed to finish.
-3. **One proposal at a time.** A writer submits a word or an ARK identifier (up to 48 characters). While it is being voted on, nobody else can propose. For fairness, a writer can't propose twice in a row while other writers are online.
-4. **10-second vote.** The validators who are active when the proposal arrives form the voting committee. The quorum is `floor(N/2) + 1`.
+   Two rules keep the network playable. **The first participant is always a writer**: whenever there is no writer, the newcomer becomes one. And if there is no validator at all (only possible with bots off), the newcomer becomes a validator. Nobody knows their role in advance, and arriving early gives no advantage.
+
+   When someone disconnects, the network metrics update instantly. A phone that reconnects (after a reload or a locked screen) gets its role back within 60 seconds. A validator seat left by someone who never returns is filled by the next person to join.
+
+   Participants can also tap **⏏ Leave** in the header to leave the network on purpose. Their seat is freed at once (no 60-second grace) and the phone goes back to the join screen. Joining again creates a brand-new node with a new random role, which is handy for testing how the network reacts to nodes leaving and joining.
+
+2. **Two consensus modes, chosen with `BOT_VALIDATORS_ENABLED`:**
+
+   | | `true` (default): playful mode | `false`: humans only |
+   |---|---|---|
+   | Validators | 4 bots (`Bot-V1`…`Bot-V4`) + up to 3 people = 7 | up to 7 people |
+   | Who decides | The bots always approve and form the majority (4 of 7), so **blocks are created even with a single writer in the room** | A **simple majority** of the human validators must approve |
+   | Good for | Small groups, demos, and making sure the ledger grows | Showing real consensus, timeouts and default deny |
+
+   Bot validators vote a second or two after each proposal and are never slashed. Human validators still vote, and still get slashed if they stay silent; their votes just can't block a proposal the bots approve. That is a good debrief point about who controls a network when a few nodes hold the majority. `BOT_VALIDATORS_COUNT` changes how many bots run (capped at `MAX_VALIDATORS`).
+
+3. **Global timer.** Nothing can be proposed until the facilitator presses **START**. The activity then runs for **5 minutes**, synchronised with the server clock on every screen. When time is up, the mempool closes. A vote already in progress is still allowed to finish.
+4. **One proposal at a time.** A writer submits a word or an ARK identifier (up to 48 characters). While it is being voted on, nobody else can propose. Writers can propose **as many times as they like**: as soon as the mempool reopens (a couple of seconds after each result), any writer can submit again, including the one who just proposed.
+5. **10-second vote.** The validators who are active when the proposal arrives form the voting committee. The quorum is `floor(N/2) + 1`.
    - Approvals ≥ quorum → **block created** and appended to the ledger.
    - Anything else, including a **timeout**, → **block not created** (default deny).
    - The round closes early when every validator has voted.
-5. **Slashing.** Each validator on the committee who doesn't vote gets a strike, and voting clears the strikes. **2 consecutive strikes** demote the validator to `OBSERVER` for the rest of the activity, and their phone shows: *"You were demoted to Observer for inactivity."* The validator count and the quorum are recalculated for the next round. Slashed validators are not replaced, so the network really does lose them.
-6. **Ledger.** A genesis block is created when the server starts and on every reset. Each block contains `index`, `timestamp`, `tx`, `prev_hash` (the first 8 hex characters of the previous block's hash) and `hash` (SHA-256 of the block). It also records who proposed it and the vote count.
+6. **Slashing.** Each validator on the committee who doesn't vote gets a strike, and voting clears the strikes. **2 consecutive strikes** demote the validator to `OBSERVER` for the rest of the activity, and their phone shows: *"You were demoted to Observer for inactivity."* The validator count and the quorum are recalculated for the next round. Slashed validators are not replaced, so the network really does lose them.
+7. **Ledger.** A genesis block is created when the server starts and on every reset. Each block contains `index`, `timestamp`, `tx`, `prev_hash` (the first 8 hex characters of the previous block's hash) and `hash` (SHA-256 of the block). It also records who proposed it and the vote count.
 
 ---
 
@@ -113,7 +128,7 @@ python main.py
 1. **Put everybody on the same network.** Connect the laptop and all phones to the Wi-Fi set in `.env`. The dashboard shows its name, password and QR code.
    - Classroom or event Wi-Fi often has **client isolation** ("AP isolation") turned on, which blocks phones from reaching the laptop. If participants can't connect, use a dedicated router or turn the **laptop or a phone into a hotspot**. Most hotspots handle 30 clients poorly, though, so a cheap travel router is the most reliable option.
 2. **Open the dashboard on the projector:** `http://<laptop-ip>:8000/dashboard`. It works from `localhost` too; the QR code always points to the laptop's LAN address.
-3. **Show the QR codes.** Press **📱 Join QR** for a full-screen view with two codes: ① join the Wi-Fi and ② open NodePlay. Participants scan both with their camera app, optionally type a nickname, and tap **Connect as a node**.
+3. **Show the QR codes.** Press **📱 Join QR** for a full-screen view with two codes: ① join the Wi-Fi and ② open NodePlay. Participants scan both with their camera app, type a **nickname (required, at least 2 characters)**, and tap **Connect as a node**. The nickname is how everyone recognizes them on the dashboard, in the activity feed and in the ledger.
    - If scanning fails, they can type the network name, the password, and the URL shown under the codes, e.g. `http://192.168.0.10:8000`.
    - If the IP is detected wrongly (VPNs, several network cards), set `HOST_IP=192.168.0.10` in `.env` and restart.
 4. **Allow the port through your firewall** if phones time out:
@@ -142,7 +157,9 @@ python main.py
 | 5:00 | Time is up. Look at the ledger: how many blocks were sealed, rejected, slashed? |
 | Debrief | Why default deny? What happens to liveness when validators go silent? Why do real BFT networks need 2/3? Who should be allowed to be a validator in a network like dARK? |
 
-Press **↺ RESET** (or **▶ NEW ROUND** after the timer ends) to play again. A reset seals a new genesis block, brings slashed validators back, and re-assigns roles in join order.
+Need to end early? While the activity is running, **▶ START** turns into a red **■ STOP** button. STOP closes the mempool immediately and cancels the vote in progress; the cancelled vote is not counted as a rejected block and gives no strikes.
+
+Press **↺ RESET** (or **▶ NEW ROUND** after the timer ends or after STOP) to play again. A reset seals a new genesis block, brings slashed validators back, and draws everybody's role again at random.
 
 ---
 
@@ -155,11 +172,13 @@ Every setting can be placed in `.env` (see [`.env.example`](.env.example)) or pa
 | `GAME_DURATION` | `300` | Activity length in seconds |
 | `VOTE_TIMEOUT` | `10` | Seconds validators have to vote |
 | `RESULT_PAUSE` | `2` | Seconds a result stays on screen before the mempool reopens |
-| `MAX_WRITERS` | `5` | Writer quota |
-| `MAX_VALIDATORS` | `7` | Validator quota |
+| `MAX_VALIDATORS` | `7` | Total validator seats, **bot validators included** |
+| `MAX_WRITERS` | `0` | Writer seats (`0` = unlimited) |
+| `BOT_VALIDATORS_ENABLED` | `true` | `true`: built-in bots always approve and hold the majority, so 1 writer is enough · `false`: simple majority of human validators |
+| `BOT_VALIDATORS_COUNT` | `4` | How many bot validators run (capped at `MAX_VALIDATORS`) |
 | `MAX_MISSED_VOTES` | `2` | Consecutive missed votes before slashing |
 | `MAX_TX_LENGTH` | `48` | Maximum characters per proposal |
-| `ADMIN_TOKEN` | *(empty)* | If set, only `/dashboard?token=<value>` can press START/RESET; other dashboards are read-only |
+| `ADMIN_TOKEN` | *(empty)* | If set, only `/dashboard?token=<value>` can press START/STOP/RESET; other dashboards are read-only |
 | `WIFI_SSID` | *(empty)* | Wi-Fi network participants must join; shown on the dashboard with a join QR code |
 | `WIFI_PASSWORD` | *(empty)* | Wi-Fi password, displayed on the dashboard |
 | `WIFI_SECURITY` | `WPA` / `nopass` | `WPA`, `WEP` or `nopass`; inferred from the password when empty |
@@ -197,7 +216,9 @@ python tools/simulate.py --nodes 30 --silence 0.3
 | `--silence` | `0.2` | Average chance that a validator skips a vote |
 | `--approve` | `0.75` | Chance that a cast vote is an approval |
 
-You can also open the participant page on your own phone while bots fill the other seats. If you join before starting the bots, you get a writer slot.
+You can also open the participant page on your own phone while bots fill the other seats. Join before starting the simulator, and your phone becomes the first writer.
+
+> These simulator bots are external clients that act like people. They are not the same as the built-in `BOT_VALIDATORS`, which live inside the server.
 
 ---
 
@@ -247,7 +268,9 @@ blockchain-NodePlay/
 |---|---|
 | node → server | `{"type": "propose", "tx": "ark:/80444/xt9bk2"}` |
 | node → server | `{"type": "vote", "round": 3, "approve": true}` |
-| dashboard → server | `{"type": "start"}` · `{"type": "reset"}` |
+| node → server | connect to `/ws/node?sid=<id>&name=<nickname>`; without a valid nickname the server closes with code 4002 |
+| node → server | `{"type": "leave"}` (frees the seat; the server closes the socket with code 4001) |
+| dashboard → server | `{"type": "start"}` · `{"type": "stop"}` · `{"type": "reset"}` |
 | server → all | `{"type": "state", "phase", "ends_at", "round", "metrics", "stats", "ledger", "events", "you"? ...}` |
 | server → one | `{"type": "notice", "level": "warn" \| "danger", "text": "..."}` |
 
@@ -260,7 +283,7 @@ blockchain-NodePlay/
 | Phones can't open the page | Same Wi-Fi? Firewall open? Client isolation on the router? Try a hotspot or a dedicated router. |
 | QR code points to the wrong IP | Restart the server after switching networks, or set `HOST_IP=<ip>` in `.env`. |
 | Wi-Fi panel does not appear | `WIFI_SSID` is empty or `.env` is missing. Run `cp .env.example .env`, edit it, and restart. |
-| Everyone is an Observer | Writer/validator seats are taken by earlier connections, such as bots. Press **RESET** to re-assign roles in join order. |
+| Everyone is an Observer | Writer and validator seats are taken by earlier connections, such as simulator bots. Press **RESET** to re-assign roles. |
 | "This session was opened in another tab" | The same browser opened the page twice. Only the newest tab stays connected. |
 | A phone shows a red dot in the header | It lost the connection. It reconnects automatically; tapping the screen or reopening the tab speeds this up. |
 

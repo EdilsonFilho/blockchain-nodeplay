@@ -13,8 +13,8 @@ Routes
     GET  /join-info    URL participants should open + Wi-Fi credentials
     GET  /qr.svg       QR code for that URL
     GET  /wifi-qr.svg  "join Wi-Fi" QR code (when WIFI_SSID is configured)
-    WS   /ws/node      participant channel  (?sid=<browser id>&name=<nickname>)
-    WS   /ws/dashboard dashboard channel    (?token=<ADMIN_TOKEN>)
+    WS   /ws/node      participant channel  (?sid=<browser id>&name=<nickname>, nickname required)
+    WS   /ws/dashboard dashboard channel    (?token=<ADMIN_TOKEN>): start / stop / reset
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from nodeplay import config
-from nodeplay.engine import ActionError, Engine
+from nodeplay.engine import NICKNAME_MAX, NICKNAME_MIN, ActionError, Engine, clean_text
 from nodeplay.network import lan_ip, qr_svg, wifi_qr_payload
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -132,7 +132,13 @@ async def incoming(ws: WebSocket) -> AsyncIterator[dict]:
 @app.websocket("/ws/node")
 async def node_socket(ws: WebSocket) -> None:
     await ws.accept()
-    node = await engine.connect_node(ws, ws.query_params.get("sid", ""), ws.query_params.get("name", ""))
+    # A nickname is mandatory: refuse the join (code 4002) so the client
+    # goes back to the join screen instead of retrying.
+    name = clean_text(ws.query_params.get("name", ""), NICKNAME_MAX)
+    if len(name) < NICKNAME_MIN:
+        await ws.close(code=4002, reason="Nickname required")
+        return
+    node = await engine.connect_node(ws, ws.query_params.get("sid", ""), name)
     try:
         async for msg in incoming(ws):
             kind = msg.get("type")
@@ -143,6 +149,10 @@ async def node_socket(ws: WebSocket) -> None:
                     await engine.vote(node, msg.get("round"), msg.get("approve"))
                 elif kind == "ping":
                     await ws.send_json({"type": "pong"})
+                elif kind == "leave":
+                    await engine.leave(node)
+                    await ws.close(code=4001, reason="Left the network")
+                    return
             except ActionError as exc:
                 await ws.send_json({"type": "notice", "level": "warn", "text": str(exc)})
     except (WebSocketDisconnect, RuntimeError):
@@ -161,10 +171,12 @@ async def dashboard_socket(ws: WebSocket) -> None:
         async for msg in incoming(ws):
             kind = msg.get("type")
             try:
-                if kind in {"start", "reset"} and not is_admin:
+                if kind in {"start", "stop", "reset"} and not is_admin:
                     raise ActionError("Read-only dashboard: open it with ?token=<ADMIN_TOKEN>.")
                 if kind == "start":
                     await engine.start()
+                elif kind == "stop":
+                    await engine.stop()
                 elif kind == "reset":
                     await engine.reset()
             except ActionError as exc:

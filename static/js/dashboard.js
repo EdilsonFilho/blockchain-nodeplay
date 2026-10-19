@@ -23,6 +23,11 @@
 
   // ------------------------------------------------------------ controls
   $("#start-btn").addEventListener("click", () => socket.send({ type: "start" }));
+  $("#stop-btn").addEventListener("click", () => {
+    if (confirm("Stop the activity now? The current vote is cancelled and the mempool closes.")) {
+      socket.send({ type: "stop" });
+    }
+  });
   $("#reset-btn").addEventListener("click", () => {
     if (state?.phase === "RUNNING" && !confirm("The activity is running. Reset the whole network?")) return;
     socket.send({ type: "reset" });
@@ -56,8 +61,11 @@
 
     // Controls (hidden on read-only dashboards)
     const startBtn = $("#start-btn");
-    startBtn.classList.toggle("hidden", !state.admin);
     $("#reset-btn").classList.toggle("hidden", !state.admin);
+    // STOP replaces START while the activity is running.
+    const running = state.phase === "RUNNING";
+    $("#stop-btn").classList.toggle("hidden", !state.admin || !running);
+    startBtn.classList.toggle("hidden", !state.admin || running);
     startBtn.disabled = state.phase === "RUNNING";
     startBtn.textContent = state.phase === "ENDED" ? "▶ NEW ROUND" : "▶ START";
 
@@ -67,6 +75,7 @@
     $("#m-validators").textContent = m.validators;
     $("#m-observers").textContent = m.observers;
     $("#m-online").textContent = m.online;
+    $("#m-bots").textContent = m.bots ? `incl. ${m.bots} bots` : "";
     $("#m-quorum").textContent = m.validators ? `${m.quorum}/${m.validators}` : "—";
 
     const s = state.stats;

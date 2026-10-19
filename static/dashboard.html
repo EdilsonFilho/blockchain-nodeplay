@@ -24,6 +24,7 @@
         <span id="phase-badge" class="badge IDLE">IDLE</span>
         <button id="qr-btn" class="btn btn-ghost" type="button">📱 Join QR</button>
         <button id="reset-btn" class="btn btn-ghost" type="button">↺ RESET</button>
+        <button id="stop-btn" class="btn btn-reject" type="button">■ STOP</button>
         <button id="start-btn" class="btn btn-primary" type="button">▶ START</button>
       </div>
     </header>
@@ -40,7 +41,7 @@
         <h2 class="panel-title">Network nodes</h2>
         <div class="roles">
           <div class="r-writer"><strong id="m-writers">0</strong><small>Writers</small></div>
-          <div class="r-validator"><strong id="m-validators">0</strong><small>Validators</small></div>
+          <div class="r-validator"><strong id="m-validators">0</strong><small>Validators</small><em id="m-bots" class="bots"></em></div>
           <div class="r-observer"><strong id="m-observers">0</strong><small>Observers</small></div>
         </div>
         <div class="foot muted">Online: <strong id="m-online">0</strong> · Quorum: <strong id="m-quorum">1</strong></div>
