@@ -1,0 +1,281 @@
+/* =========================================================================
+   NodePlay — shared styles (dark "cockpit" theme, mobile first)
+   ========================================================================= */
+
+:root {
+  --bg: #0b0f17;
+  --bg-2: #111725;
+  --panel: #151c2c;
+  --panel-2: #1b2438;
+  --border: #26314a;
+  --text: #e6ebf5;
+  --muted: #8a96b0;
+
+  --writer: #f5b544;
+  --validator: #38bdf8;
+  --observer: #a78bfa;
+  --approve: #22c55e;
+  --reject: #ef4444;
+  --warn: #f59e0b;
+
+  --radius: 14px;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 10% -10%, #17223a 0%, var(--bg) 60%) fixed, var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input { font: inherit; color: inherit; }
+
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); }
+
+/* ----------------------------------------------------------------- panels */
+
+.panel {
+  background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.panel-title {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ----------------------------------------------------------------- badges */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.badge.WRITER { color: var(--writer); }
+.badge.VALIDATOR { color: var(--validator); }
+.badge.OBSERVER { color: var(--observer); }
+.badge.ELIMINATED { color: var(--reject); }
+.badge.IDLE { color: var(--muted); }
+.badge.RUNNING { color: var(--approve); }
+.badge.ENDED { color: var(--reject); }
+
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--reject);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--reject) 25%, transparent);
+}
+.dot.online {
+  background: var(--approve);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--approve) 25%, transparent);
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.06s ease, filter 0.15s ease, opacity 0.15s ease;
+  touch-action: manipulation;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:hover:not(:disabled) { filter: brightness(1.12); }
+.btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+.btn-primary { background: linear-gradient(180deg, #3b82f6, #2563eb); border-color: #3b82f6; }
+.btn-approve { background: linear-gradient(180deg, #22c55e, #16a34a); border-color: #22c55e; color: #04130a; }
+.btn-reject { background: linear-gradient(180deg, #ef4444, #dc2626); border-color: #ef4444; color: #1a0303; }
+.btn-ghost { background: transparent; }
+.btn.selected { outline: 3px solid #fff; outline-offset: 2px; }
+
+.input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0d1320;
+  outline: none;
+  font-size: 1.05rem;
+}
+.input:focus { border-color: var(--validator); }
+
+/* ------------------------------------------------------------ mempool box */
+
+.mempool-tx {
+  font-family: var(--mono);
+  font-size: clamp(1.4rem, 5vw, 2.6rem);
+  font-weight: 800;
+  word-break: break-word;
+  margin: 6px 0 4px;
+}
+
+.progress {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: #0d1320;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin: 12px 0 6px;
+}
+.progress > span {
+  position: absolute; inset: 0 auto 0 0;
+  width: 100%;
+  background: linear-gradient(90deg, var(--approve), var(--warn), var(--reject));
+  background-size: 300% 100%;
+  border-radius: inherit;
+  transition: width 0.1s linear;
+}
+
+.tally {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.tally > div {
+  background: #0d1320;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+}
+.tally strong { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.tally small { color: var(--muted); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.tally .ok strong { color: var(--approve); }
+.tally .no strong { color: var(--reject); }
+
+.result {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+.result.APPROVED { color: var(--approve); background: color-mix(in srgb, var(--approve) 10%, transparent); }
+.result.REJECTED { color: var(--reject); background: color-mix(in srgb, var(--reject) 10%, transparent); }
+
+/* ------------------------------------------------------------- the ledger */
+
+.chain {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding: 6px 2px 12px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+.block {
+  flex: 0 0 auto;
+  width: 190px;
+  background: #0d1320;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.8rem;
+  position: relative;
+}
+.block.genesis { border-color: var(--observer); }
+.block.latest { border-color: var(--approve); box-shadow: 0 0 0 2px color-mix(in srgb, var(--approve) 30%, transparent); animation: pop 0.4s ease; }
+.block .idx { font-weight: 800; color: var(--validator); }
+.block .tx {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 6px 0 8px;
+  word-break: break-word;
+}
+.block dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; }
+.block dt { color: var(--muted); }
+.block dd { margin: 0; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.link {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 28px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--muted) 0 6px, transparent 6px 10px);
+  position: relative;
+}
+.link::after {
+  content: "";
+  position: absolute; right: -2px; top: -4px;
+  border: 5px solid transparent;
+  border-left-color: var(--muted);
+}
+
+/* Vertical ledger for narrow screens (phones). */
+.chain.vertical { flex-direction: column-reverse; overflow: visible; }
+.chain.vertical .block { width: 100%; }
+.chain.vertical .link { width: 2px; height: 16px; margin-left: 24px; align-self: flex-start;
+  background: repeating-linear-gradient(180deg, var(--muted) 0 4px, transparent 4px 7px); }
+.chain.vertical .link::after { display: none; }
+
+/* -------------------------------------------------------------- toasts */
+
+#toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(92vw, 460px);
+  z-index: 50;
+  pointer-events: none;
+}
+.toast {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+  animation: pop 0.25s ease;
+}
+.toast.warn { border-color: var(--warn); }
+.toast.danger { border-color: var(--reject); background: #2a1114; }
+.toast.ok { border-color: var(--approve); }
+
+@keyframes pop {
+  from { transform: translateY(6px) scale(0.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.pulse { animation: pulse 1s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

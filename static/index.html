@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f17">
+  <title>NodePlay · Node</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/client.css">
+</head>
+<body>
+  <!-- ============================================================ JOIN -->
+  <main id="join-screen" class="client">
+    <section class="panel join">
+      <div class="brand">⛓️ NodePlay</div>
+      <h1>Join the network</h1>
+      <p class="muted">
+        You are about to become a node of a permissioned blockchain.
+        Your role (Writer, Validator or Observer) is assigned automatically.
+      </p>
+      <form id="join-form" autocomplete="off">
+        <input id="join-name" class="input" maxlength="20" placeholder="Your nickname (optional)">
+        <button class="btn btn-primary" type="submit">Connect as a node →</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- ============================================================ NODE -->
+  <main id="node-screen" class="client hidden">
+    <header class="client-header panel">
+      <div class="who">
+        <span id="role-badge" class="badge">…</span>
+        <span id="node-name" class="name"></span>
+      </div>
+      <div class="conn" title="Connection status"><span id="conn-dot" class="dot"></span></div>
+    </header>
+
+    <section class="panel clock">
+      <div>
+        <div class="panel-title">Time remaining</div>
+        <div id="game-clock" class="game-clock mono">05:00</div>
+      </div>
+      <span id="phase-badge" class="badge IDLE">IDLE</span>
+    </section>
+
+    <p id="role-hint" class="role-hint muted"></p>
+
+    <!-- Slashing alert -->
+    <section id="slashed-alert" class="panel alert hidden">
+      <strong>⚠ You were demoted to Observer for inactivity (2 missed votes).</strong>
+      <p>Validators that stay silent put the network's liveness at risk, so the protocol removed you from the validator set.</p>
+    </section>
+
+    <!-- WRITER: propose a transaction -->
+    <section id="writer-view" class="panel hidden">
+      <h2 class="panel-title">Propose a transaction</h2>
+      <form id="propose-form" autocomplete="off">
+        <input id="tx-input" class="input mono" maxlength="48" placeholder="e.g. ark:/80444/xt9bk2" enterkeyhint="send">
+        <button id="propose-btn" class="btn btn-primary" type="submit" disabled>Propose Transaction</button>
+      </form>
+      <p id="writer-status" class="muted small"></p>
+    </section>
+
+    <!-- Mempool (everyone). Validators get the voting buttons. -->
+    <section id="mempool" class="panel">
+      <h2 class="panel-title">Mempool · current vote</h2>
+      <div data-mp="voting" class="hidden">
+        <div class="muted small">Proposed by <strong data-mp="proposer"></strong></div>
+        <div class="mempool-tx" data-mp="tx"></div>
+        <div class="progress"><span data-mp="bar"></span></div>
+        <div class="row-between small muted">
+          <span>Needs <strong data-mp="required"></strong> of <strong data-mp="eligible"></strong> approvals</span>
+          <span class="mono" data-mp="seconds"></span>
+        </div>
+
+        <div id="vote-box" class="vote-box hidden">
+          <button id="approve-btn" class="btn btn-approve" type="button">✔ Approve Block</button>
+          <button id="reject-btn" class="btn btn-reject" type="button">✖ Reject Block</button>
+        </div>
+        <p id="vote-status" class="vote-status hidden"></p>
+
+        <div class="tally">
+          <div class="ok"><strong data-mp="approvals">0</strong><small>Approve</small></div>
+          <div class="no"><strong data-mp="rejections">0</strong><small>Reject</small></div>
+          <div><strong data-mp="pending">0</strong><small>Pending</small></div>
+        </div>
+      </div>
+      <div data-mp="idle">
+        <p class="muted" data-mp="idle-text"></p>
+      </div>
+      <div data-mp="result" class="hidden"></div>
+    </section>
+
+    <section id="strikes" class="panel strikes hidden">
+      <span>Missed votes in a row</span>
+      <span id="strike-dots" class="strike-dots"></span>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Network</h2>
+      <div class="net">
+        <div><strong id="m-writers">0</strong><small>Writers</small></div>
+        <div><strong id="m-validators">0</strong><small>Validators</small></div>
+        <div><strong id="m-observers">0</strong><small>Observers</small></div>
+        <div><strong id="m-blocks">0</strong><small>Blocks</small></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Ledger <span class="muted">(newest first)</span></h2>
+      <div id="ledger" class="chain vertical"></div>
+    </section>
+  </main>
+
+  <script src="/static/js/common.js"></script>
+  <script src="/static/js/node.js"></script>
+</body>
+</html>

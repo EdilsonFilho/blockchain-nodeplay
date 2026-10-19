@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f17">
+  <title>NodePlay · Dashboard</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+  <div class="dash">
+    <!-- ======================================================== TOP BAR -->
+    <header class="topbar">
+      <div class="title">
+        <span class="logo">⛓️</span>
+        <div>
+          <h1>NodePlay <span class="muted">· Permissioned Consensus Lab</span></h1>
+          <div class="sub muted">Writers propose · Validators vote (BFT-style quorum &gt; 50%) · Observers audit</div>
+        </div>
+      </div>
+      <div class="controls">
+        <span id="conn-dot" class="dot" title="Connection status"></span>
+        <span id="phase-badge" class="badge IDLE">IDLE</span>
+        <button id="qr-btn" class="btn btn-ghost" type="button">📱 Join QR</button>
+        <button id="reset-btn" class="btn btn-ghost" type="button">↺ RESET</button>
+        <button id="start-btn" class="btn btn-primary" type="button">▶ START</button>
+      </div>
+    </header>
+
+    <!-- ========================================================== CARDS -->
+    <section class="cards">
+      <article class="panel card card-time">
+        <h2 class="panel-title">Time remaining</h2>
+        <div id="game-clock" class="big mono">05:00</div>
+        <div class="progress thin"><span id="game-bar"></span></div>
+      </article>
+
+      <article class="panel card">
+        <h2 class="panel-title">Network nodes</h2>
+        <div class="roles">
+          <div class="r-writer"><strong id="m-writers">0</strong><small>Writers</small></div>
+          <div class="r-validator"><strong id="m-validators">0</strong><small>Validators</small></div>
+          <div class="r-observer"><strong id="m-observers">0</strong><small>Observers</small></div>
+        </div>
+        <div class="foot muted">Online: <strong id="m-online">0</strong> · Quorum: <strong id="m-quorum">1</strong></div>
+      </article>
+
+      <article class="panel card card-ok">
+        <h2 class="panel-title">Blocks created</h2>
+        <div id="s-created" class="big">0</div>
+        <div class="foot muted">Sealed on the ledger (genesis excluded)</div>
+      </article>
+
+      <article class="panel card card-bad">
+        <h2 class="panel-title">Blocks not created</h2>
+        <div id="s-rejected" class="big">0</div>
+        <div class="foot muted"><strong id="s-timeouts">0</strong> by timeout (default deny)</div>
+      </article>
+
+      <article class="panel card card-slash">
+        <h2 class="panel-title">Validators slashed</h2>
+        <div id="s-eliminated" class="big">0</div>
+        <ul id="slash-log" class="slash-log"></ul>
+      </article>
+    </section>
+
+    <!-- ===================================================== MIDDLE ROW -->
+    <section class="middle">
+      <article id="mempool" class="panel mempool">
+        <h2 class="panel-title">Mempool · current vote</h2>
+        <div data-mp="voting" class="hidden">
+          <div class="muted">Proposed by <strong data-mp="proposer"></strong></div>
+          <div class="mempool-tx" data-mp="tx"></div>
+          <div class="progress"><span data-mp="bar"></span></div>
+          <div class="row">
+            <span class="muted">Quorum: <strong data-mp="required"></strong> of <strong data-mp="eligible"></strong> validators must approve</span>
+            <span class="mono countdown" data-mp="seconds"></span>
+          </div>
+          <div class="tally">
+            <div class="ok"><strong data-mp="approvals">0</strong><small>Approve</small></div>
+            <div class="no"><strong data-mp="rejections">0</strong><small>Reject</small></div>
+            <div><strong data-mp="pending">0</strong><small>Pending</small></div>
+          </div>
+        </div>
+        <div data-mp="idle" class="idle">
+          <p data-mp="idle-text"></p>
+        </div>
+        <div data-mp="result" class="hidden"></div>
+      </article>
+
+      <aside class="side">
+        <article class="panel join">
+          <h2 class="panel-title">Join the network</h2>
+          <div class="join-row">
+            <img src="/qr.svg" alt="QR code to join" class="qr-small">
+            <div>
+              <div class="muted small">Connect to the same Wi-Fi and open:</div>
+              <div id="join-url" class="join-url mono">…</div>
+            </div>
+          </div>
+        </article>
+        <article class="panel feed-panel">
+          <h2 class="panel-title">Activity feed</h2>
+          <ul id="feed" class="feed"></ul>
+        </article>
+      </aside>
+    </section>
+
+    <!-- ========================================================= LEDGER -->
+    <section class="panel ledger-panel">
+      <h2 class="panel-title">Blockchain ledger <span id="chain-valid" class="chain-valid"></span></h2>
+      <div id="ledger" class="chain"></div>
+    </section>
+  </div>
+
+  <!-- Full-screen QR overlay -->
+  <div id="qr-overlay" class="overlay hidden" role="dialog" aria-label="Join QR code">
+    <div class="overlay-box">
+      <img src="/qr.svg" alt="QR code to join">
+      <div class="join-url mono big-url" id="join-url-big">…</div>
+      <p class="muted">Scan with your phone camera (same Wi-Fi) · click anywhere to close</p>
+    </div>
+  </div>
+
+  <script src="/static/js/common.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
