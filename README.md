@@ -123,7 +123,7 @@ python main.py
 
 ---
 
-## Connecting 30 devices on a local network
+## Connecting devices on a local network
 
 1. **Put everybody on the same network.** Connect the laptop and all phones to the Wi-Fi set in `.env`. The dashboard shows its name, password and QR code.
    - Classroom or event Wi-Fi often has **client isolation** ("AP isolation") turned on, which blocks phones from reaching the laptop. If participants can't connect, use a dedicated router or turn the **laptop or a phone into a hotspot**. Most hotspots handle 30 clients poorly, though, so a cheap travel router is the most reliable option.
